@@ -1,0 +1,48 @@
+# Rust
+/target/
+Cargo.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Docker
+docker/test_media/
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+/tmp/
+*.tmp
+
+# Build artifacts
+*.o
+*.a
+*.so
+*.dylib
+
+# Coverage
+*.gcno
+*.gcda
+lcov.info
+tarpaulin-report.html
+
+# Secrets (never commit these)
+*.pem
+*.key
+credentials.json
+secrets.yaml

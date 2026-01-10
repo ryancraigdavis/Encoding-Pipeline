@@ -1,0 +1,195 @@
+# Encoding Pipeline Configuration
+# This is an example configuration file. Adjust paths and settings as needed.
+
+global:
+  log_level: info
+  temp_dir: /tmp/encode_pipeline
+
+  redis:
+    host: redis
+    port: 6379
+    db: 0
+
+  stability_check:
+    duration_seconds: 30
+    poll_interval_seconds: 5
+
+  retry:
+    max_attempts: 2
+
+  prometheus:
+    enabled: true
+    port: 9090
+
+  notifications:
+    discord:
+      webhook_url: "${DISCORD_WEBHOOK}"
+      events:
+        on_encode_success: true
+        on_encode_failure: true
+        on_dead_letter: true
+        on_queue_empty: false
+
+profiles:
+  # High quality movie profile
+  - name: movies_hq
+    input_path: /media/incoming/movies
+    output_path: /media/encoded/movies
+    recursive: true
+    file_patterns:
+      - "*.mkv"
+      - "*.mp4"
+
+    output_naming:
+      structure: mirror
+      filename: preserve
+      suffix: ".x265"
+
+    encoder: x265
+    vmaf_target: 95.0
+    encoder_params: "--preset slow --tune film --bframes 8 --ref 6"
+    workers: 4
+
+    audio:
+      rules:
+        # English main audio - passthrough if compatible, else transcode
+        - match:
+            language: eng
+            flags:
+              commentary: false
+          action: passthrough_or_transcode
+          passthrough_codecs:
+            - aac
+            - ac3
+            - eac3
+          transcode:
+            codec: aac
+            bitrate: 640k
+            lossless_bitrate: 768k
+          downmix:
+            mode: add_stereo
+            codec: aac
+            bitrate: 160k
+
+        # English commentary - transcode to low bitrate
+        - match:
+            language: eng
+            flags:
+              commentary: true
+          action: transcode
+          transcode:
+            codec: aac
+            bitrate: 128k
+
+      fallback: exclude
+      max_tracks_per_language: 2
+      output_order: preserve
+
+    subtitles:
+      tracks:
+        - language: eng
+          include_forced: true
+          include_full: true
+          include_sdh: false
+          burn_in: false
+
+      image_subs: copy
+      fallback: exclude
+
+  # TV shows profile - faster encoding
+  - name: tv_shows
+    input_path: /media/incoming/tv
+    output_path: /media/encoded/tv
+    recursive: true
+    file_patterns:
+      - "*.mkv"
+
+    output_naming:
+      structure: mirror
+      filename: preserve
+
+    encoder: x265
+    vmaf_target: 93.0
+    encoder_params: "--preset medium --tune film"
+    workers: 6
+
+    audio:
+      rules:
+        - match:
+            language: eng
+          action: passthrough_or_transcode
+          passthrough_codecs:
+            - aac
+            - ac3
+          transcode:
+            codec: aac
+            bitrate: 256k
+          downmix:
+            mode: none
+
+      fallback: exclude
+
+    subtitles:
+      tracks:
+        - language: eng
+          include_forced: true
+          include_full: true
+          include_sdh: false
+
+      image_subs: copy
+      fallback: exclude
+
+  # Anime profile with Japanese audio preservation
+  - name: anime
+    input_path: /media/incoming/anime
+    output_path: /media/encoded/anime
+    recursive: true
+    file_patterns:
+      - "*.mkv"
+
+    output_naming:
+      structure: mirror
+      filename: preserve
+
+    encoder: x265
+    vmaf_target: 94.0
+    encoder_params: "--preset slow --tune animation"
+    workers: 4
+
+    audio:
+      rules:
+        # Japanese audio - preserve lossless
+        - match:
+            language: jpn
+          action: passthrough_lossless
+          transcode:
+            codec: aac
+            bitrate: 320k
+
+        # English dub - transcode
+        - match:
+            language: eng
+          action: transcode
+          transcode:
+            codec: aac
+            bitrate: 256k
+
+      fallback: exclude
+      language_priority:
+        - jpn
+        - eng
+
+    subtitles:
+      tracks:
+        - language: eng
+          include_forced: true
+          include_full: true
+          include_sdh: false
+
+        - language: jpn
+          include_forced: true
+          include_full: true
+          include_sdh: false
+
+      image_subs: copy
+      fallback: exclude

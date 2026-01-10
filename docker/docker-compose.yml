@@ -1,0 +1,56 @@
+version: "3.8"
+
+services:
+  encoder:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: encoding-pipeline
+    environment:
+      - CONFIG_PATH=/config/pipeline.yaml
+      - REDIS_URL=redis://redis:6379
+      - DISCORD_WEBHOOK=${DISCORD_WEBHOOK:-}
+      - LOG_LEVEL=info
+    volumes:
+      # Configuration
+      - ./config:/config:ro
+      # Media directories - adjust these paths for your setup
+      - /path/to/incoming:/media/incoming:ro
+      - /path/to/encoded:/media/encoded
+      # Temp directory for encoding intermediates
+      - /tmp/encode_pipeline:/tmp/encode_pipeline
+    depends_on:
+      - redis
+    restart: unless-stopped
+    # Resource limits (optional, adjust as needed)
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '8'
+    #       memory: 16G
+
+  redis:
+    image: redis:7-alpine
+    container_name: encoding-redis
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    # Expose port for debugging (optional)
+    # ports:
+    #   - "6379:6379"
+
+  # Optional: Prometheus for metrics collection
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   container_name: encoding-prometheus
+  #   volumes:
+  #     - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+  #     - prometheus_data:/prometheus
+  #   ports:
+  #     - "9091:9090"
+  #   restart: unless-stopped
+
+volumes:
+  redis_data:
+  # prometheus_data:

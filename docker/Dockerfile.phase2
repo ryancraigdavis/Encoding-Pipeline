@@ -1,0 +1,33 @@
+# Phase 2: libvmaf
+# Netflix's VMAF library for video quality measurement
+# Needed by: FFmpeg, aomenc, av1an
+
+FROM encoding-pipeline:phase1
+
+ENV PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:/usr/local/lib/x86_64-linux-gnu/pkgconfig:$PKG_CONFIG_PATH"
+ENV LD_LIBRARY_PATH="/usr/local/lib:/usr/local/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
+
+WORKDIR /build
+
+# Build libvmaf from source
+RUN git clone --depth 1 --branch v3.0.0 https://github.com/Netflix/vmaf.git && \
+    cd vmaf/libvmaf && \
+    meson setup build --buildtype release --prefix=/usr/local \
+        -Denable_tests=false \
+        -Denable_docs=false && \
+    ninja -C build && \
+    ninja -C build install && \
+    ldconfig && \
+    cd ../.. && \
+    rm -rf vmaf
+
+# Verify libvmaf installation
+RUN echo "=== Checking libvmaf ===" && \
+    pkg-config --modversion libvmaf && \
+    ls -la /usr/local/lib/libvmaf* && \
+    echo "=== Phase 2 Complete ==="
+
+# Default command shows installed versions
+CMD ["sh", "-c", "echo '=== Phase 2: libvmaf ===' && \
+    echo \"libvmaf: $(pkg-config --modversion libvmaf)\" && \
+    echo '=== Phase 2 Complete ==='"]

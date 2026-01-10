@@ -1,0 +1,96 @@
+# Phase 1: Base Build Tools + Rust + Python 3.12
+# This establishes the foundation for building video encoding tools
+
+FROM debian:bookworm-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV CARGO_HOME="/root/.cargo"
+ENV PATH="/root/.cargo/bin:/usr/local/bin:$PATH"
+
+# Install base build tools
+RUN apt-get update && apt-get install -y \
+    # Core build tools
+    build-essential \
+    cmake \
+    meson \
+    ninja-build \
+    nasm \
+    yasm \
+    # Version control
+    git \
+    # Package config and libraries
+    pkg-config \
+    autoconf \
+    automake \
+    libtool \
+    # Networking (for downloads)
+    curl \
+    wget \
+    ca-certificates \
+    # SSL development (needed for Rust/cargo and Python)
+    libssl-dev \
+    # Python 3.12 build dependencies
+    libffi-dev \
+    zlib1g-dev \
+    libbz2-dev \
+    libreadline-dev \
+    libsqlite3-dev \
+    libncurses5-dev \
+    libncursesw5-dev \
+    xz-utils \
+    tk-dev \
+    liblzma-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Build Python 3.12 from source
+WORKDIR /build
+RUN curl -O https://www.python.org/ftp/python/3.12.4/Python-3.12.4.tgz && \
+    tar -xzf Python-3.12.4.tgz && \
+    cd Python-3.12.4 && \
+    ./configure --prefix=/usr/local --enable-optimizations --with-ensurepip=install && \
+    make -j$(nproc) && \
+    make install && \
+    cd .. && \
+    rm -rf Python-3.12.4 Python-3.12.4.tgz
+
+# Create python3 and pip3 symlinks (override any system python)
+RUN ln -sf /usr/local/bin/python3.12 /usr/local/bin/python3 && \
+    ln -sf /usr/local/bin/pip3.12 /usr/local/bin/pip3 && \
+    ln -sf /usr/local/bin/python3.12 /usr/local/bin/python && \
+    ln -sf /usr/local/bin/pip3.12 /usr/local/bin/pip
+
+# Upgrade pip
+RUN pip3 install --upgrade pip setuptools wheel
+
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+
+# Verify installations during build
+RUN echo "=== Checking installed tools ===" && \
+    gcc --version | head -1 && \
+    g++ --version | head -1 && \
+    cmake --version | head -1 && \
+    meson --version && \
+    ninja --version && \
+    nasm --version | head -1 && \
+    yasm --version | head -1 && \
+    python3 --version && \
+    pip3 --version && \
+    rustc --version && \
+    cargo --version && \
+    echo "=== Phase 1 Complete ==="
+
+WORKDIR /build
+
+# Default command shows installed versions
+CMD ["sh", "-c", "echo '=== Phase 1: Base Tools ===' && \
+    echo \"gcc: $(gcc --version | head -1)\" && \
+    echo \"cmake: $(cmake --version | head -1)\" && \
+    echo \"meson: $(meson --version)\" && \
+    echo \"ninja: $(ninja --version)\" && \
+    echo \"nasm: $(nasm --version | head -1)\" && \
+    echo \"python3: $(python3 --version)\" && \
+    echo \"pip3: $(pip3 --version)\" && \
+    echo \"rustc: $(rustc --version)\" && \
+    echo \"cargo: $(cargo --version)\" && \
+    echo '=== Phase 1 Complete ==='"]
