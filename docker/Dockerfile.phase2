@@ -4,8 +4,8 @@
 
 FROM encoding-pipeline:phase1
 
-ENV PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:/usr/local/lib/x86_64-linux-gnu/pkgconfig:$PKG_CONFIG_PATH"
-ENV LD_LIBRARY_PATH="/usr/local/lib:/usr/local/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
+ENV PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:/usr/local/lib/x86_64-linux-gnu/pkgconfig"
+ENV LD_LIBRARY_PATH="/usr/local/lib:/usr/local/lib/x86_64-linux-gnu"
 
 WORKDIR /build
 
@@ -24,7 +24,7 @@ RUN git clone --depth 1 --branch v3.0.0 https://github.com/Netflix/vmaf.git && \
 # Verify libvmaf installation
 RUN echo "=== Checking libvmaf ===" && \
     pkg-config --modversion libvmaf && \
-    ls -la /usr/local/lib/libvmaf* && \
+    find /usr/local -name "libvmaf*" -type f && \
     echo "=== Phase 2 Complete ==="
 
 # Default command shows installed versions
