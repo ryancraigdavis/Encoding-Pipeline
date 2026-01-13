@@ -12,8 +12,8 @@ const DEAD_LETTER_KEY: &str = "encode:dead_letter";
 const JOB_PREFIX: &str = "encode:job:";
 
 /// Manages the encoding queue in Redis.
+#[derive(Clone)]
 pub struct QueueManager {
-    client: redis::Client,
     connection: redis::aio::ConnectionManager,
 }
 
@@ -33,7 +33,7 @@ impl QueueManager {
                 message: e.to_string(),
             })?;
 
-        Ok(Self { client, connection })
+        Ok(Self { connection })
     }
 
     /// Adds a job to the queue.

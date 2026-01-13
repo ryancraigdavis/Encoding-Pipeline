@@ -6,7 +6,7 @@ use anyhow::{Context, Result};
 
 use super::model::AppConfig;
 use crate::error::ConfigError;
-use crate::validation::{validate_config, SystemCapabilities, ValidationResult};
+use crate::validation::{validate_config, SystemCapabilities};
 
 /// Loads the configuration file from disk and parses it.
 pub fn load_from_path(path: &Path) -> Result<AppConfig, ConfigError> {

@@ -1,0 +1,49 @@
+# Phase 4: zimg + VapourSynth R72
+# VapourSynth is needed by av1an for scene detection and chunking
+# MUST use R72 - R73 has breaking API changes
+
+FROM encoding-pipeline:phase3
+
+ENV PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:/usr/local/lib/x86_64-linux-gnu/pkgconfig"
+ENV LD_LIBRARY_PATH="/usr/local/lib:/usr/local/lib/x86_64-linux-gnu"
+ENV PYTHONPATH="/usr/local/lib/python3.12/site-packages"
+
+WORKDIR /build
+
+# Install Cython (needed for VapourSynth Python bindings)
+RUN pip3 install Cython
+
+# Build zimg (required by VapourSynth)
+RUN git clone --depth 1 --branch release-3.0.5 https://github.com/sekrit-twc/zimg.git && \
+    cd zimg && \
+    ./autogen.sh && \
+    ./configure --prefix=/usr/local && \
+    make -j$(nproc) && \
+    make install && \
+    ldconfig && \
+    cd .. && \
+    rm -rf zimg
+
+# Build VapourSynth R72 (NOT R73 - API breaking changes)
+RUN git clone --depth 1 --branch R72 https://github.com/vapoursynth/vapoursynth.git && \
+    cd vapoursynth && \
+    ./autogen.sh && \
+    ./configure --prefix=/usr/local && \
+    make -j$(nproc) && \
+    make install && \
+    ldconfig && \
+    cd .. && \
+    rm -rf vapoursynth
+
+# Verify installations
+RUN echo "=== Checking zimg and VapourSynth ===" && \
+    pkg-config --modversion zimg && \
+    pkg-config --modversion vapoursynth && \
+    python3 -c "import vapoursynth; print(f'VapourSynth: {vapoursynth.core.version()}')" && \
+    echo "=== Phase 4 Complete ==="
+
+CMD ["sh", "-c", "echo '=== Phase 4: VapourSynth ===' && \
+    echo \"zimg: $(pkg-config --modversion zimg)\" && \
+    echo \"vapoursynth: $(pkg-config --modversion vapoursynth)\" && \
+    python3 -c \"import vapoursynth; print(f'VS Core: {vapoursynth.core.version()}')\" && \
+    echo '=== Phase 4 Complete ==='"]

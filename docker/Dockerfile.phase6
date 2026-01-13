@@ -1,0 +1,48 @@
+# Phase 6: L-SMASH + L-SMASH-Works
+# L-SMASH-Works provides lsmash source filter for VapourSynth
+# Required by av1an for lsmash chunking method
+
+FROM encoding-pipeline:phase5
+
+ENV PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:/usr/local/lib/x86_64-linux-gnu/pkgconfig"
+ENV LD_LIBRARY_PATH="/usr/local/lib:/usr/local/lib/x86_64-linux-gnu"
+ENV PYTHONPATH="/usr/local/lib/python3.12/site-packages"
+
+WORKDIR /build
+
+# Install xxhash (required by L-SMASH-Works)
+RUN apt-get update && apt-get install -y libxxhash-dev && rm -rf /var/lib/apt/lists/*
+
+# Build L-SMASH (multimedia muxer/demuxer library)
+RUN git clone --depth 1 https://github.com/l-smash/l-smash.git && \
+    cd l-smash && \
+    ./configure --prefix=/usr/local --enable-shared && \
+    make -j$(nproc) && \
+    make install && \
+    ldconfig && \
+    cd .. && \
+    rm -rf l-smash
+
+# Build L-SMASH-Works (VapourSynth plugin)
+RUN git clone --depth 1 https://github.com/HomeOfAviSynthPlusEvolution/L-SMASH-Works.git && \
+    cd L-SMASH-Works/VapourSynth && \
+    meson setup build --prefix=/usr/local \
+        --buildtype=release \
+        -Ddefault_library=shared && \
+    ninja -C build && \
+    ninja -C build install && \
+    ldconfig && \
+    cd /build && \
+    rm -rf L-SMASH-Works
+
+# Verify installations
+RUN echo "=== Checking L-SMASH and L-SMASH-Works ===" && \
+    pkg-config --modversion liblsmash && \
+    find /usr/local -name "libvslsmashsource*" -type f && \
+    python3 -c "import vapoursynth as vs; core = vs.core; print(f'lsmas plugin loaded: {hasattr(core, \"lsmas\")}')" && \
+    echo "=== Phase 6 Complete ==="
+
+CMD ["sh", "-c", "echo '=== Phase 6: L-SMASH ===' && \
+    echo \"liblsmash: $(pkg-config --modversion liblsmash)\" && \
+    python3 -c \"import vapoursynth as vs; core = vs.core; print(f'lsmas available: {hasattr(core, \\\"lsmas\\\")}')\" && \
+    echo '=== Phase 6 Complete ==='"]

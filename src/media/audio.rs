@@ -50,7 +50,7 @@ pub fn process_audio_streams(
     let mut track_counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
 
     for stream in streams {
-        let decision = match_stream_to_rule(stream, config) {
+        let decision = match match_stream_to_rule(stream, config) {
             Some((rule_idx, rule)) => {
                 // Check max tracks per language limit
                 if let Some(max) = config.max_tracks_per_language {

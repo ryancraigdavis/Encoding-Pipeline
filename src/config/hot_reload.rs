@@ -1,12 +1,12 @@
 //! Configuration hot-reload functionality.
 
 use std::path::Path;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Result;
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, RwLock};
 
 use super::loader::load_and_validate;
 use super::model::AppConfig;
@@ -117,13 +117,8 @@ impl ConfigWatcher {
         let new_config = load_and_validate(&self.config_path, &self.capabilities)?;
 
         // Swap the configuration atomically
-        {
-            let mut config = self
-                .config
-                .write()
-                .map_err(|e| anyhow::anyhow!("Failed to acquire config lock: {}", e))?;
-            *config = new_config;
-        }
+        let mut config = self.config.write().await;
+        *config = new_config;
 
         Ok(())
     }

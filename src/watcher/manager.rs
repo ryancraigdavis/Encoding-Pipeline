@@ -59,17 +59,19 @@ impl WatcherManager {
 
     /// Starts watching all configured folders.
     pub async fn start(&mut self, process_existing: bool) -> Result<(), WatcherError> {
-        let config = self.config.read().await;
+        // Collect profile data while holding the read lock
+        let profiles: Vec<Profile> = {
+            let config = self.config.read().await;
+            config.profiles.clone()
+        };
 
-        for profile in &config.profiles {
+        for profile in &profiles {
             self.add_watcher(profile).await?;
 
             if process_existing {
                 self.scan_existing(profile).await?;
             }
         }
-
-        drop(config);
 
         // Start the main event loop
         self.run_loop().await;

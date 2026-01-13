@@ -1,8 +1,10 @@
-# Phase 3: x264 and x265 (multilib)
+# Phase 3: x264 and x265
 # Video encoders for H.264 and HEVC
-# x265 is built with 8/10/12-bit support
 
 FROM encoding-pipeline:phase2
+
+ENV PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:/usr/local/lib/x86_64-linux-gnu/pkgconfig"
+ENV LD_LIBRARY_PATH="/usr/local/lib:/usr/local/lib/x86_64-linux-gnu"
 
 WORKDIR /build
 
@@ -16,44 +18,32 @@ RUN git clone --depth 1 https://code.videolan.org/videolan/x264.git && \
     cd .. && \
     rm -rf x264
 
-# Build x265 multilib (8/10/12-bit support)
-# This is a complex build: we build 12-bit and 10-bit as static libs,
-# then link them into the 8-bit build for a unified library
+# Build x265 (10-bit)
 RUN git clone --depth 1 -b Release_4.1 https://bitbucket.org/multicoreware/x265_git.git x265 && \
-    cd x265/build/linux && \
-    # Build 12-bit static library
-    mkdir -p 12bit && cd 12bit && \
-    cmake ../../../source \
-        -DHIGH_BIT_DEPTH=ON \
-        -DEXPORT_C_API=OFF \
-        -DENABLE_SHARED=OFF \
-        -DENABLE_CLI=OFF \
-        -DMAIN12=ON && \
-    make -j$(nproc) && \
-    cd .. && \
-    # Build 10-bit static library
-    mkdir -p 10bit && cd 10bit && \
-    cmake ../../../source \
-        -DHIGH_BIT_DEPTH=ON \
-        -DEXPORT_C_API=OFF \
-        -DENABLE_SHARED=OFF \
-        -DENABLE_CLI=OFF && \
-    make -j$(nproc) && \
-    cd .. && \
-    # Build 8-bit with 10-bit and 12-bit linked in
-    mkdir -p 8bit && cd 8bit && \
-    ln -sf ../10bit/libx265.a libx265_main10.a && \
-    ln -sf ../12bit/libx265.a libx265_main12.a && \
-    cmake ../../../source \
+    cd x265 && \
+    mkdir -p build && cd build && \
+    cmake ../source \
         -DCMAKE_INSTALL_PREFIX=/usr/local \
+        -DHIGH_BIT_DEPTH=ON \
         -DENABLE_SHARED=ON \
-        -DENABLE_CLI=ON \
-        -DEXTRA_LIB="x265_main10.a;x265_main12.a" \
-        -DEXTRA_LINK_FLAGS="-L." \
-        -DLINKED_10BIT=ON \
-        -DLINKED_12BIT=ON && \
+        -DENABLE_CLI=ON && \
     make -j$(nproc) && \
     make install && \
+    # Manually install shared library (make install only installs static)
+    cp libx265.so.215 /usr/local/lib/ && \
+    ln -sf /usr/local/lib/libx265.so.215 /usr/local/lib/libx265.so && \
+    # Create pkg-config file
+    echo 'prefix=/usr/local' > /usr/local/lib/pkgconfig/x265.pc && \
+    echo 'exec_prefix=${prefix}' >> /usr/local/lib/pkgconfig/x265.pc && \
+    echo 'libdir=${exec_prefix}/lib' >> /usr/local/lib/pkgconfig/x265.pc && \
+    echo 'includedir=${prefix}/include' >> /usr/local/lib/pkgconfig/x265.pc && \
+    echo '' >> /usr/local/lib/pkgconfig/x265.pc && \
+    echo 'Name: x265' >> /usr/local/lib/pkgconfig/x265.pc && \
+    echo 'Description: H.265/HEVC video encoder' >> /usr/local/lib/pkgconfig/x265.pc && \
+    echo 'Version: 4.1' >> /usr/local/lib/pkgconfig/x265.pc && \
+    echo 'Libs: -L${libdir} -lx265' >> /usr/local/lib/pkgconfig/x265.pc && \
+    echo 'Libs.private: -lstdc++ -lm -lgcc_s -lgcc -lpthread -ldl' >> /usr/local/lib/pkgconfig/x265.pc && \
+    echo 'Cflags: -I${includedir}' >> /usr/local/lib/pkgconfig/x265.pc && \
     ldconfig && \
     cd /build && \
     rm -rf x265
@@ -66,7 +56,6 @@ RUN echo "=== Checking x264 and x265 ===" && \
     pkg-config --modversion x265 && \
     echo "=== Phase 3 Complete ==="
 
-# Default command shows installed versions
 CMD ["sh", "-c", "echo '=== Phase 3: Video Encoders ===' && \
     echo \"x264: $(x264 --version 2>&1 | head -1)\" && \
     echo \"x265: $(x265 --version 2>&1 | head -1)\" && \

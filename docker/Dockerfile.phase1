@@ -6,6 +6,7 @@ FROM debian:bookworm-slim
 ENV DEBIAN_FRONTEND=noninteractive
 ENV CARGO_HOME="/root/.cargo"
 ENV PATH="/root/.cargo/bin:/usr/local/bin:$PATH"
+ENV LD_LIBRARY_PATH="/usr/local/lib"
 
 # Install base build tools
 RUN apt-get update && apt-get install -y \
@@ -42,14 +43,16 @@ RUN apt-get update && apt-get install -y \
     liblzma-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Build Python 3.12 from source
+# Build Python 3.12 from source (with shared library for VapourSynth)
 WORKDIR /build
 RUN curl -O https://www.python.org/ftp/python/3.12.4/Python-3.12.4.tgz && \
     tar -xzf Python-3.12.4.tgz && \
     cd Python-3.12.4 && \
-    ./configure --prefix=/usr/local --enable-optimizations --with-ensurepip=install && \
+    ./configure --prefix=/usr/local --enable-optimizations --enable-shared --with-ensurepip=install && \
     make -j$(nproc) && \
     make install && \
+    echo "/usr/local/lib" > /etc/ld.so.conf.d/python.conf && \
+    ldconfig && \
     cd .. && \
     rm -rf Python-3.12.4 Python-3.12.4.tgz
 

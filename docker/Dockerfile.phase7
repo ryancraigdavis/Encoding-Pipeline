@@ -1,0 +1,48 @@
+# Phase 7: mkvtoolnix + av1an + encoding-pipeline
+# Final phase - all tools needed for the encoding pipeline
+
+FROM encoding-pipeline:phase6
+
+ENV PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:/usr/local/lib/x86_64-linux-gnu/pkgconfig"
+ENV LD_LIBRARY_PATH="/usr/local/lib:/usr/local/lib/x86_64-linux-gnu"
+ENV PYTHONPATH="/usr/local/lib/python3.12/site-packages"
+ENV CARGO_HOME="/root/.cargo"
+ENV PATH="/root/.cargo/bin:/usr/local/bin:$PATH"
+
+WORKDIR /build
+
+# Install mkvtoolnix from Debian repos (building from source is complex)
+RUN apt-get update && apt-get install -y mkvtoolnix && rm -rf /var/lib/apt/lists/*
+
+# Install av1an via cargo (need to set library path for linking)
+ENV RUSTFLAGS="-L /usr/local/lib"
+RUN cargo install av1an
+
+# Verify av1an can find all dependencies
+RUN echo "=== Checking av1an ===" && \
+    av1an --version && \
+    echo "=== Checking mkvtoolnix ===" && \
+    mkvmerge --version | head -1 && \
+    echo "=== Phase 7 Complete ==="
+
+# Copy and build encoding-pipeline
+WORKDIR /app
+COPY Cargo.toml Cargo.lock* ./
+COPY src ./src
+
+RUN cargo build --release && \
+    cp target/release/encoding-pipeline /usr/local/bin/
+
+# Create directories for runtime
+RUN mkdir -p /config /watch /output /tmp/encoding
+
+WORKDIR /app
+
+# Default command shows all versions
+CMD ["sh", "-c", "echo '=== Encoding Pipeline ===' && \
+    echo \"ffmpeg: $(ffmpeg -version 2>&1 | head -1)\" && \
+    echo \"x265: $(x265 --version 2>&1 | head -1)\" && \
+    echo \"av1an: $(av1an --version)\" && \
+    echo \"mkvmerge: $(mkvmerge --version | head -1)\" && \
+    python3 -c \"import vapoursynth as vs; print(f'VapourSynth: R{vs.core.version_number()}')\" && \
+    echo '=== Ready ==='"]

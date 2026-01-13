@@ -17,11 +17,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Result;
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::mpsc;
 use tracing::{error, info, warn};
 
 use crate::cli::{Cli, Commands, RunArgs};
-use crate::config::model::AppConfig;
 use crate::config::ConfigManager;
 use crate::encoder::EncodeWorker;
 use crate::notify::{DiscordNotifier, MetricsServer};
@@ -74,7 +73,7 @@ async fn run_pipeline(args: RunArgs, config_path: &std::path::Path) -> Result<()
 
     info!("Configuration loaded and validated");
 
-    let config_read = config.read().unwrap();
+    let config_read = config.read().await;
 
     // Build Redis URL
     let redis_url = build_redis_url(&config_read.global.redis);

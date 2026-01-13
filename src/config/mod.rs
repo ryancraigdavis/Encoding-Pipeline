@@ -6,9 +6,10 @@ pub mod loader;
 pub mod model;
 
 use std::path::Path;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 use anyhow::Result;
+use tokio::sync::RwLock;
 
 use crate::validation::SystemCapabilities;
 pub use model::AppConfig;
